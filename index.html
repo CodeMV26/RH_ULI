@@ -3,157 +3,217 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RH_ULI Stock v3</title>
+    <title>RH_ULI Stock Manager</title>
     <style>
         :root { --primary: #2563eb; --bg: #f8fafc; --text: #1e293b; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
         .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        .btn { background: var(--primary); color: white; border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; display: block; text-align: center; box-sizing: border-box; margin-bottom: 10px; cursor: pointer; }
+        .btn { background: var(--primary); color: white; border: none; padding: 12px 15px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; display: block; text-align: center; box-sizing: border-box; margin-bottom: 10px; cursor: pointer; }
         .btn-secondary { background: #64748b; }
         .btn-success { background: #16a34a; }
         .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
         .nav-tabs .btn { margin-bottom: 0; flex: 1; }
         .search-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 15px; }
-        .item-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
-        .item-controls { display: flex; align-items: center; gap: 12px; }
-        .btn-qty { width: 40px; height: 40px; border-radius: 50%; border: 1px solid #cbd5e1; background: white; font-size: 20px; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        .qty-display { font-size: 18px; font-weight: bold; min-width: 24px; text-align: center; }
-        textarea { width: 100%; height: 200px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; font-family: monospace; box-sizing: border-box; margin-bottom: 15px; }
-        .hidden { display: none !important; }
+        
+        /* Tabella Mobile Responsive */
+        .table-responsive { overflow-x: auto; margin-top: 10px; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+        th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
+        
+        .input-small { width: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; font-size: 14px; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; }
+        .badge-info { background: #e0f2fe; color: #0369a1; }
+        .badge-warning { background: #fef3c7; color: #b45309; }
+        
+        textarea { width: 100%; height: 180px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-family: monospace; box-sizing: border-box; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
     <div class="nav-tabs">
-        <button id="btn-tab-orders" class="btn" onclick="switchTab('orders')">📊 Ordini</button>
-        <button id="btn-tab-manage" class="btn btn-secondary" onclick="switchTab('manage')">⚙️ Gestisci Items</button>
+        <button id="btn-tab-orders" class="btn" onclick="switchTab('orders')">📋 Calcolo Fabbisogni & Ordini</button>
+        <button id="btn-tab-manage" class="btn btn-secondary" onclick="switchTab('manage')">⚙️ Gestisci Archivio Items</button>
     </div>
 
     <div id="tab-orders">
         <div class="card">
-            <input type="text" id="search-input" class="search-input" oninput="renderItems()" placeholder="Cerca prodotto (es. pane)...">
-            <div id="items-container"></div>
+            <input type="text" id="search-input" class="search-input" oninput="renderTable()" placeholder="🔍 Cerca prodotto in archivio...">
+            
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Prodotto</th>
+                            <th>Ideale</th>
+                            <th>In Casa</th>
+                            <th>Arrivi</th>
+                            <th>Fabbisogno</th>
+                            <th>Proposta</th>
+                            <th>Conf. Ordine</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        </tbody>
+                </table>
+            </div>
         </div>
-        <button class="btn btn-success" onclick="sendOrder()">📱 Invia Ordine su WhatsApp</button>
+        <button class="btn btn-success" onclick="sendOrder()">📱 Invia Ordine Confermato su WhatsApp</button>
     </div>
 
     <div id="tab-manage" class="hidden">
         <div class="card">
-            <h3>Configurazione Archivio</h3>
-            <p style="font-size: 13px; color: #64748b;">Inserisci un prodotto per riga nel formato: <strong>Nome, QuantitàIdeale</strong></p>
-            <textarea id="raw-input" placeholder="Esempio:&#10;Pane, 10&#10;Latte, 5"></textarea>
-            <button class="btn" onclick="saveArchive()">💾 Aggiorna Archivio</button>
+            <h3>⚙️ Gestione Anagrafica Prodotti</h3>
+            <p style="font-size: 13px; color: #64748b; line-height: 1.4;">
+                Qui crei, aggiorni o cancelli i prodotti. Scrivi un prodotto per riga.<br>
+                Formato richiesto: <strong>Nome Prodotto, Quantità Ideale</strong>
+            </p>
+            <textarea id="raw-input" placeholder="Esempio:&#10;Pane, 10&#10;Latte, 5&#10;Farina Tipo 0, 20"></textarea>
+            <button class="btn" onclick="saveArchive()">💾 Salva e Aggiorna Archivio</button>
         </div>
     </div>
 
     <script>
+        // Array globale dei prodotti
         let items = [];
 
+        // Funzione per scambiare le schermate
+        document.getElementById('tab-manage').style.display = 'none'; 
         function switchTab(tab) {
             if (tab === 'orders') {
-                document.getElementById('tab-orders').classList.remove('hidden');
-                document.getElementById('tab-manage').classList.add('hidden');
+                document.getElementById('tab-orders').style.display = 'block';
+                document.getElementById('tab-manage').style.display = 'none';
                 document.getElementById('btn-tab-orders').classList.remove('btn-secondary');
                 document.getElementById('btn-tab-manage').classList.add('btn-secondary');
+                renderTable();
             } else {
-                document.getElementById('tab-orders').classList.add('hidden');
-                document.getElementById('tab-manage').classList.remove('hidden');
+                document.getElementById('tab-orders').style.display = 'none';
+                document.getElementById('tab-manage').style.display = 'block';
                 document.getElementById('btn-tab-orders').classList.add('btn-secondary');
                 document.getElementById('btn-tab-manage').classList.remove('btn-secondary');
             }
         }
 
+        // Legge il testo dell'area di testo e aggiorna l'elenco logico dei prodotti
         function parseInput() {
             const rawText = document.getElementById('raw-input').value;
-            items = rawText.split('\n')
+            const newNames = [];
+            
+            const parsedItems = rawText.split('\n')
                 .map(line => {
                     const parts = line.split(',');
                     if (parts.length >= 2) {
-                        return {
-                            name: parts[0].trim(),
-                            ideal: parseInt(parts[1].trim()) || 0,
-                            current: 0
-                        };
+                        const name = parts[0].trim();
+                        const ideal = parseInt(parts[1].trim()) || 0;
+                        if(name !== "") {
+                            newNames.push(name);
+                            // Se il prodotto esisteva già, mantiene i dati inseriti dall'utente
+                            const existing = items.find(i => i.name.toLowerCase() === name.toLowerCase());
+                            return {
+                                name: name,
+                                ideal: ideal,
+                                inCasa: existing ? existing.inCasa : 0,
+                                arrivi: existing ? existing.arrivi : 0,
+                                confermato: existing ? existing.confermato : null
+                            };
+                        }
                     }
                     return null;
                 })
-                .filter(i => i && i.name !== '');
+                .filter(i => i !== null);
+            
+            items = parsedItems;
         }
 
-        function renderItems() {
-            const container = document.getElementById('items-container');
+        // Genera la tabella dinamica con tutti i campi richiesti e i calcoli automatici
+        function renderTable() {
+            const tbody = document.getElementById('table-body');
             const query = document.getElementById('search-input').value.toLowerCase();
-            container.innerHTML = '';
+            tbody.innerHTML = '';
 
             const filtered = items.filter(item => item.name.toLowerCase().includes(query));
 
             if (filtered.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #64748b; padding: 20px;">Nessun prodotto trovato. Vai in "Gestisci Items" per aggiungerne!</div>';
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">Nessun materiale trovato. Vai in "Gestisci Archivio" per inserire i prodotti!</td></tr>`;
                 return;
             }
 
             filtered.forEach(item => {
-                const missing = Math.max(0, item.ideal - item.current);
-                const row = document.createElement('div');
-                row.className = 'item-row';
+                // Calcoli matematici automatici richiesti
+                const totaleDisponibile = item.inCasa + item.arrivi;
+                const fabbisogno = Math.max(0, item.ideal - item.inCasa); 
+                const proposta = Math.max(0, item.ideal - totaleDisponibile);
+                
+                // Se l'utente non ha modificato manualmente l'ordine confermato, segui la proposta
+                if (item.confermato === null) {
+                    item.confermato = proposta;
+                }
+
+                const row = document.createElement('tr');
                 row.innerHTML = `
-                    <div>
-                        <strong style="font-size: 16px;">${item.name}</strong>
-                        <div style="font-size: 12px; color: #64748b;">Ideale: ${item.ideal} | Mancanti: ${missing}</div>
-                    </div>
-                    <div class="item-controls">
-                        <button class="btn-qty" onclick="changeQty('${item.name}', -1)">-</button>
-                        <span class="qty-display">${item.current}</span>
-                        <button class="btn-qty" onclick="changeQty('${item.name}', 1)">+</button>
-                    </div>
+                    <td><strong>${item.name}</strong></td>
+                    <td><span class="badge badge-info">${item.ideal}</span></td>
+                    <td><input type="number" class="input-small" value="${item.inCasa}" min="0" onchange="updateRow('${item.name}', 'inCasa', this.value)"></td>
+                    <td><input type="number" class="input-small" value="${item.arrivi}" min="0" onchange="updateRow('${item.name}', 'arrivi', this.value)"></td>
+                    <td><span class="badge font-weight-bold">${fabbisogno}</span></td>
+                    <td><span class="badge badge-warning">${proposta}</span></td>
+                    <td><input type="number" class="input-small" style="border-color: #16a34a; font-weight:bold;" value="${item.confermato}" min="0" onchange="updateRow('${item.name}', 'confermato', this.value)"></td>
                 `;
-                container.appendChild(row);
+                tbody.appendChild(row);
             });
         }
 
-        function changeQty(name, delta) {
+        // Aggiorna i dati inseriti al volo dall'utente nella tabella
+        function updateRow(name, field, value) {
             const item = items.find(i => i.name === name);
             if (item) {
-                item.current = Math.max(0, item.current + delta);
-                localStorage.setItem('rh_stock_items', JSON.stringify(items));
-                renderItems();
+                if (field === 'confermato') {
+                    item.confermato = parseInt(value) || 0;
+                } else {
+                    item[field] = parseInt(value) || 0;
+                }
+                localStorage.setItem('rh_stock_items_v3', JSON.stringify(items));
+                // Ricalcola istantaneamente i valori visivi della riga
+                renderTable();
             }
         }
 
+        // Azione del Pulsante Gestisci: Salva la lista, aggiunge i nuovi, cancella i rimossi
         function saveArchive() {
             parseInput();
-            localStorage.setItem('rh_stock_items', JSON.stringify(items));
-            alert('Archivio aggiornato con successo!');
+            localStorage.setItem('rh_stock_items_v3', JSON.stringify(items));
+            alert('Archivio prodotti aggiornato con successo!');
             switchTab('orders');
-            renderItems();
         }
 
+        // Azione del Pulsante Ordini: Prende i dati confermati e prepara il testo WhatsApp
         function sendOrder() {
-            const toOrder = items.filter(i => i.current < i.ideal);
+            const toOrder = items.filter(i => i.confermato > 0);
             if (toOrder.length === 0) {
-                alert('Tutti i prodotti sono al livello ideale. Nessun ordine necessario!');
+                alert('Nessun ordine confermato presente (tutti i valori sono a 0).');
                 return;
             }
-            let text = "📋 *ORDINE STOCK RH_ULI*\n\n";
+            let text = "📋 *REQUISIZIONE ORDINE STOCK RH_ULI*\n\n";
             toOrder.forEach(i => {
-                const qty = i.ideal - i.current;
-                text += `• *${i.name}*: ordinare *${qty}* pz (Disponibili: ${i.current}/${i.ideal})\n`;
+                text += `• *${i.name}*: Ordine Confermato di *${i.confermato}* pz\n`;
+                text += `  [Ideale: ${i.ideal} | In Casa: ${i.inCasa} | Arrivi: ${i.arrivi}]\n\n`;
             });
             const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
             window.open(url, '_blank');
         }
 
-        // Avvio automatico corretto
+        // Caricamento iniziale dei dati persistenti nella memoria locale
         window.addEventListener('DOMContentLoaded', (event) => {
-            const saved = localStorage.getItem('rh_stock_items');
+            const saved = localStorage.getItem('rh_stock_items_v3');
             if (saved) {
                 items = JSON.parse(saved);
                 document.getElementById('raw-input').value = items.map(i => `${i.name}, ${i.ideal}`).join('\n');
             } else {
-                document.getElementById('raw-input').value = "Pane, 10\nLatte, 5\nUova, 12";
+                // Dati di partenza puliti
+                document.getElementById('raw-input').value = "Materiale Alfa, 50\nMateriale Beta, 20\nComponente Gamma, 10";
                 parseInput();
             }
-            renderItems();
+            renderTable();
         });
     </script>
 </body>
