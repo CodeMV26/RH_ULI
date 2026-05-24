@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RH_ULI Stock System v1.2.1</title>
+    <title>RH_ULI Stock System v1.3</title>
     <style>
         :root { --primary: #2563eb; --warning: #ea580c; --bg: #f1f5f9; --text: #0f172a; --border: #cbd5e1; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; box-sizing: border-box; }
@@ -14,7 +14,7 @@
         
         /* Stati Attivi Forzati via Classe Esplicita */
         .nav-btn.active-orders { background: #2563eb !important; }
-        .nav-btn.active-print { background: #ea580c !important; } /* ARANCIONE AMBRATO COMPATIBILE */
+        .nav-btn.active-print { background: #ea580c !important; }
         .nav-btn.active-manage { background: #0f172a !important; }
         
         /* Pulsanti */
@@ -154,11 +154,12 @@
         <button class="btn" style="background:#64748b; margin-top:20px; font-size:12px; padding:8px;" onclick="emergencyReset()">🔄 Reset di Emergenza Memoria App</button>
     </div>
 
-    <div class="version-footer no-print">RH_ULI Stock System - Versione 1.2.1</div>
+    <div class="version-footer no-print">RH_ULI Stock System - Versione 1.3</div>
 
     <script>
         let database = [];
-        let orderSession = {}; 
+        let orderSession = {}; // Conterrà lo storico consolidato del giorno
+        let currentFormState = {}; // NUOVO: Stato temporaneo dei campi visibili per svuotarli al salvataggio
 
         function getFormattedDate() {
             const today = new Date();
@@ -168,7 +169,6 @@
             return `${dd}/${mm}/${yy}`;
         }
 
-        // RISOLTO IL BLOCCO SWITCH-TAB: Forza la visibilità assoluta
         function switchTab(tab) {
             const pOrders = document.getElementById('panel-orders');
             const pPrint = document.getElementById('panel-print-list');
@@ -178,7 +178,6 @@
             const btnPrint = document.getElementById('nav-print-list');
             const btnManage = document.getElementById('nav-manage');
 
-            // Pulisci classi e nascondi tutto
             pOrders.classList.add('hidden');
             pPrint.classList.add('hidden');
             pManage.classList.add('hidden');
@@ -187,14 +186,13 @@
             btnPrint.className = "nav-btn";
             btnManage.className = "nav-btn";
             
-            // Attiva la scheda corretta
             if (tab === 'orders') {
                 pOrders.classList.remove('hidden');
                 btnOrders.classList.add('active-orders');
                 renderOrders();
             } else if (tab === 'print-list') {
                 pPrint.classList.remove('hidden');
-                btnPrint.classList.add('active-print'); // Attiva l'arancione
+                btnPrint.classList.add('active-print');
                 renderPrintList();
             } else if (tab === 'manage') {
                 pManage.classList.remove('hidden');
@@ -238,7 +236,7 @@
                 const idx = parseInt(editIndex);
                 database[idx] = { code, name, weight, pcsConf, confCart };
             }
-            localStorage.setItem('rh_db_v1.2_anag', JSON.stringify(database));
+            localStorage.setItem('rh_db_v1.3_anag', JSON.stringify(database));
             resetForm(); renderDatabaseTable(); alert("Salvato!");
         }
 
@@ -257,7 +255,7 @@
         function deleteDatabaseRecord(index) {
             if(confirm("Eliminare prodotto?")) {
                 database.splice(index, 1);
-                localStorage.setItem('rh_db_v1.2_anag', JSON.stringify(database));
+                localStorage.setItem('rh_db_v1.3_anag', JSON.stringify(database));
                 renderDatabaseTable();
             }
         }
@@ -290,19 +288,20 @@
             actionBtn.style.display = "block";
 
             filtered.forEach(item => {
-                if (!orderSession[item.code]) {
-                    orderSession[item.code] = { giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 };
+                // Se non esiste uno stato di digitazione temporaneo per questa scheda attiva, inizializzalo vuoto a 0
+                if (!currentFormState[item.code]) {
+                    currentFormState[item.code] = { giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 };
                 }
-                const session = orderSession[item.code];
+                const state = currentFormState[item.code];
 
                 const pezziPerCartone = item.pcsConf * item.confCart;
-                const totaleInCasaPezzi = session.giacMagazzino + session.giacCucina;
-                const arriviPezziTotali = session.arriviCartoni * pezziPerCartone;
+                const totaleInCasaPezzi = state.giacMagazzino + state.giacCucina;
+                const arriviPezziTotali = state.arriviCartoni * pezziPerCartone;
                 
-                const propostaPezzi = Math.max(0, session.venditeSettimana - totaleInCasaPezzi - arriviPezziTotali);
+                const propostaPezzi = Math.max(0, state.venditeSettimana - totaleInCasaPezzi - arriviPezziTotali);
                 const propostaCartoni = pezziPerCartone > 0 ? (propostaPezzi / pezziPerCartone).toFixed(2) : 0;
                 
-                const pezziOrdinatiFinali = session.confermatoCartoni * pezziPerCartone;
+                const pezziOrdinatiFinali = state.confermatoCartoni * pezziPerCartone;
                 const kgOrdinatiFinali = ((pezziOrdinatiFinali * item.weight) / 1000).toFixed(2);
 
                 const card = document.createElement('div');
@@ -319,11 +318,11 @@
                     <div class="grid-3">
                         <div>
                             <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">MAGAZZINO</label>
-                            <input type="number" class="input-box" value="${session.giacMagazzino}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'giacMagazzino', this.value)">
+                            <input type="number" class="input-box" value="${state.giacMagazzino}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'giacMagazzino', this.value)">
                         </div>
                         <div>
                             <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">CUCINA</label>
-                            <input type="number" class="input-box" value="${session.giacCucina}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'giacCucina', this.value)">
+                            <input type="number" class="input-box" value="${state.giacCucina}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'giacCucina', this.value)">
                         </div>
                         <div class="data-box highlight"><div class="data-label">Totale Casa</div><div class="data-val">${totaleInCasaPezzi} pz</div></div>
                     </div>
@@ -332,12 +331,12 @@
                     <div class="grid-3">
                         <div>
                             <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">ARRIVI (CRT)</label>
-                            <input type="number" class="input-box" value="${session.arriviCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'arriviCartoni', this.value)">
+                            <input type="number" class="input-box" value="${state.arriviCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'arriviCartoni', this.value)">
                         </div>
                         <div class="data-box"><div class="data-label">In Arrivo</div><div class="data-val">${arriviPezziTotali} pz</div></div>
                         <div>
                             <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">VENDITE (PZ)</label>
-                            <input type="number" class="input-box" value="${session.venditeSettimana}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'venditeSettimana', this.value)">
+                            <input type="number" class="input-box" value="${state.venditeSettimana}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'venditeSettimana', this.value)">
                         </div>
                     </div>
 
@@ -351,7 +350,7 @@
                     <div class="grid-3">
                         <div>
                             <label style="font-size:9px; font-weight:bold; display:block; text-align:center; color:#16a34a;">CONF. CRT</label>
-                            <input type="number" class="input-box input-confirm" value="${session.confermatoCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'confermatoCartoni', this.value)">
+                            <input type="number" class="input-box input-confirm" value="${state.confermatoCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'confermatoCartoni', this.value)">
                         </div>
                         <div class="data-box output"><div class="data-label">Tot Pezzi</div><div class="data-val" style="color:#16a34a;">${pezziOrdinatiFinali}</div></div>
                         <div class="data-box output"><div class="data-label">Tot Kg</div><div class="data-val" style="color:#16a34a;">${kgOrdinatiFinali}</div></div>
@@ -362,27 +361,48 @@
         }
 
         function updateValue(code, field, value) {
-            if (orderSession[code]) {
-                orderSession[code][field] = field.includes('Cartoni') || field.includes('confermato') ? (parseFloat(value) || 0) : (parseInt(value) || 0);
-                localStorage.setItem('rh_db_v1.2_session', JSON.stringify(orderSession));
+            if (currentFormState[code]) {
+                currentFormState[code][field] = field.includes('Cartoni') || field.includes('confermato') ? (parseFloat(value) || 0) : (parseInt(value) || 0);
                 renderOrders();
             }
         }
 
+        // SALVA NEL REPORT E SPOSTA I DATI RESETTANDO LA SCHEDA VISIBILE
         function saveAndClearCurrentCard() {
             const query = document.getElementById('search-input').value.toLowerCase().trim();
             const currentItem = database.find(item => item.code.toLowerCase() === query || item.name.toLowerCase().includes(query));
             
             if (currentItem) {
-                const session = orderSession[currentItem.code];
-                if (!session || session.confermatoCartoni === 0) {
-                    if (!confirm("Non hai confermato quantità d'ordine (CONF. CRT è a 0). Archiviare comunque?")) {
+                const state = currentFormState[currentItem.code];
+                
+                if (!state || state.confermatoCartoni === 0) {
+                    if (!confirm("Non hai confermato quantità d'ordine (CONF. CRT è a 0). Archviare comunque?")) {
                         return;
                     }
                 }
-                alert(`Articolo ${currentItem.code} salvato nella lista giornaliera!`);
+                
+                // Consolida o incrementa l'ordine nella sessione globale giornaliera
+                if (!orderSession[currentItem.code]) {
+                    orderSession[currentItem.code] = { giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 };
+                }
+                
+                // Sommiamo i valori per permettere caricamenti multipli sequenziali dello stesso codice
+                orderSession[currentItem.code].giacMagazzino += state.giacMagazzino;
+                orderSession[currentItem.code].giacCucina += state.giacCucina;
+                orderSession[currentItem.code].arriviCartoni += state.arriviCartoni;
+                orderSession[currentItem.code].venditeSettimana += state.venditeSettimana;
+                orderSession[currentItem.code].confermatoCartoni += state.confermatoCartoni;
+                
+                // Salva lo storico consolidato nel localStorage
+                localStorage.setItem('rh_db_v1.3_session', JSON.stringify(orderSession));
+                
+                // RISOLTO: Svuota lo stato temporaneo di digitazione per questo specifico codice
+                currentFormState[currentItem.code] = { giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 };
+                
+                alert(`Articolo ${currentItem.code} archiviato con successo nella lista di riordino!`);
             }
             
+            // Pulisci barra di ricerca
             document.getElementById('search-input').value = "";
             renderOrders();
         }
@@ -418,6 +438,7 @@
             });
         }
 
+        // RISOLTO: TRACCIATO COMPATTO SU WHATSAPP PER EVITARE ANDATE A CAPO DISORDINATE
         function sendOrderWhatsApp() {
             const activeOrders = database.filter(item => orderSession[item.code] && orderSession[item.code].confermatoCartoni > 0);
             if(activeOrders.length === 0) {
@@ -425,30 +446,26 @@
                 return;
             }
             
-            let text = `📋 *REPORT REQUISIZIONE GLOBALE [${getFormattedDate()}]*\n`;
-            text += `===================================\n\n`;
+            let text = `📋 *RIORDINO DEL [${getFormattedDate()}]*\n`;
+            text += `=========================\n\n`;
             let pesoTotaleSpedizione = 0;
             
             activeOrders.forEach(i => {
                 const session = orderSession[i.code];
                 const pezziPerCartone = i.pcsConf * i.confCart;
-                const totaleInCasaPezzi = session.giacMagazzino + session.giacCucina;
-                const arriviPezziTotali = session.arriviCartoni * pezziPerCartone;
-                const propostaPezzi = Math.max(0, session.venditeSettimana - totaleInCasaPezzi - arriviPezziTotali);
-                const propostaCartoni = pezziPerCartone > 0 ? (propostaPezzi / pezziPerCartone).toFixed(2) : 0;
                 const pezziOrdinatiFinali = session.confermatoCartoni * pezziPerCartone;
                 const kgTot = (pezziOrdinatiFinali * i.weight) / 1000;
                 pesoTotaleSpedizione += kgTot;
                 
-                text += `📦 *[COD.${i.code}] ${i.name}*\n`;
-                text += `├─ 🏠 *IN CASA:* Mag: ${session.giacMagazzino} | Cuc: ${session.giacCucina} ➔ *Tot: ${totaleInCasaPezzi} pz*\n`;
-                text += `├─ 🚚 *ARRIVI/VENDITE:* Arrivi: ${session.arriviCartoni} CRT | Vendite: ${session.venditeSettimana} pz\n`;
-                text += `├─ 📊 *ANALISI PROPOSTA:* ${propostaPezzi} pz (${propostaCartoni} CRT)\n`;
-                text += `└─ ✅ *CONFERMATO:* *${session.confermatoCartoni} CRT* (${pezziOrdinatiFinali} pz | ${kgTot.toFixed(2)} Kg)\n`;
-                text += `-----------------------------------\n\n`;
+                // Layout ultra-stretto ad alta leggibilità per schermi smartphone
+                text += `📦 *COD. ${i.code}*\n`;
+                text += `${i.name}\n`;
+                text += `• In Casa: ${session.giacMagazzino + session.giacCucina} pz\n`;
+                text += `• Ordine: *${session.confermatoCartoni} CRT* (${kgTot.toFixed(2)} Kg)\n`;
+                text += `-------------------------\n`;
             });
             
-            text += `⚖️ *PESO TOTALE SPEDIZIONE:* *${pesoTotaleSpedizione.toFixed(2)} Kg*`;
+            text += `\n⚖️ *PESO TOTALE: ${pesoTotaleSpedizione.toFixed(2)} Kg*`;
             window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(text), '_blank');
         }
 
@@ -470,7 +487,8 @@
         function clearCurrentOrderList() {
             if(confirm("Vuoi cancellare definitivamente tutta la lista di riordino di oggi?")) {
                 orderSession = {};
-                localStorage.removeItem('rh_db_v1.2_session');
+                currentFormState = {};
+                localStorage.removeItem('rh_db_v1.3_session');
                 renderPrintList();
             }
         }
@@ -482,10 +500,10 @@
         }
 
         window.onload = function() {
-            const savedAnag = localStorage.getItem('rh_db_v1.2_anag');
+            const savedAnag = localStorage.getItem('rh_db_v1.3_anag');
             if(savedAnag) database = JSON.parse(savedAnag);
             
-            const savedSession = localStorage.getItem('rh_db_v1.2_session');
+            const savedSession = localStorage.getItem('rh_db_v1.3_session');
             if(savedSession) orderSession = JSON.parse(savedSession);
             
             renderOrders();
