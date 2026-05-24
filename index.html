@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>RH_ULI Stock</title>
+    
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="RH_ULI">
+
+    <style>
+        :root { --primary: #007aff; --bg: #f2f2f7; --card: #ffffff; --text: #1c1c1e; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 16px;
+            padding-top: calc(12px + env(safe-area-inset-top)); padding-bottom: calc(40px + env(safe-area-inset-bottom));
+        }
+        .nav-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .nav-btn { background: #e5e5ea; border: none; padding: 14px; border-radius: 10px; font-weight: bold; font-size: 14px; color: #555; cursor: pointer; }
+        .nav-btn.active { background: var(--primary); color: white; }
+        .card { background: var(--card); padding: 16px; border-radius: 12px; margin-bottom: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; font-size: 18px; }
+        .form-group { margin-bottom: 12px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #8e8e93; }
+        input, select { width: 100%; padding: 14px; border: 1px solid #c7c7cc; border-radius: 10px; box-sizing: border-box; font-size: 16px; -webkit-appearance: none; }
+        input:focus, select:focus { border-color: var(--primary); outline: none; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .result-box { background: #e5e5ea; padding: 12px; border-radius: 8px; font-weight: bold; margin-top: 10px; font-size: 15px; line-height: 1.4; }
+        .highlight { color: var(--primary); font-size: 18px; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .btn-action { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 10px; font-size: 16px; font-weight: bold; width: 100%; margin-top: 5px; cursor: pointer; }
+        .btn-danger { background: #ff3b30; }
+    </style>
+</head>
+<body>
+
+    <div class="nav-tabs">
+        <button id="btn-tab-calc" class="nav-btn active" onclick="switchPage('calc')">📊 Ordini</button>
+        <button id="btn-tab-archive" class="nav-btn" onclick="switchPage('archive')">⚙️ Gestisci 100 Items</button>
+    </div>
+
+    <div id="page-calc" class="page active">
+        <div class="card">
+            <h2>📦 Selezione Articolo</h2>
+            <div class="form-group">
+                <label for="searchItem">Cerca per Codice o Descrizione</label>
+                <input type="text" id="searchItem" placeholder="Digita 'Pane' o codice..." oninput="filtraArticoli()">
+            </div>
+            <div class="form-group">
+                <label for="itemSelect">Articolo Selezionato</label>
+                <select id="itemSelect" onchange="caricaDatiArticolo()">
+                    </select>
+            </div>
+            <div id="itemDetails" style="font-size: 13px; color: #666; display: none; background: #f8f9fa; padding: 8px; border-radius: 6px;">
+                Peso: <span id="detPeso"></span>gr | Cartone: <span id="detConf"></span> conf | Confezione: <span id="detPezzi"></span> pz
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Giacenze & Vendite</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="giacMagazzino">Giac. Magazzino (pz)</label>
+                    <input type="number" id="giacMagazzino" value="0" oninput="calcolaOrdine()">
+                </div>
+                <div class="form-group">
+                    <label for="giacCucina">Giac. Cucina (pz)</label>
+                    <input type="number" id="giacCucina" value="0" oninput="calcolaOrdine()">
+                </div>
+            </div>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="cartoniArrivo">In Arrivo (Cartoni)</label>
+                    <input type="number" id="cartoniArrivo" value="0" oninput="calcolaOrdine()">
+                </div>
+                <div class="form-group">
+                    <label for="venditeSett">Vendite Settimana (pz)</label>
+                    <input type="number" id="venditeSett" value="0" oninput="calcolaOrdine()">
+                </div>
+            </div>
+            <div class="result-box">
+                In casa totale (X): <span id="totInCasa" class="highlight">0</span> pz<br>
+                In arrivo totale (Z): <span id="totInArrivo">0</span> pz
+            </div>
+        </div>
+
+        <div class="card" style="background: #fff9db;">
+            <h2>📋 Proposta d'Ordine (Y - X - Z)</h2>
+            <div class="result-box" style="background: #fff0b3;">
+                Mancanti: <span id="propostaPezzi" class="highlight">0</span> pz<br>
+                Equivalgono a: <span id="propostaCartoni" class="highlight">0</span> Cartoni
+            </div>
+            <div class="form-group" style="margin-top: 15px;">
+                <label for="confermaCartoni"><b>INSERISCI CARTONI DA ORDINARE</b></label>
+                <input type="number" id="confermaCartoni" placeholder="Quanti cartoni ordini?" oninput="calcolaRiepilogoFinale()">
+            </div>
+        </div>
+
+        <div class="card" style="background: #e3f2fd;">
+            <h2>🚚 Totale Ordine Effettivo</h2>
+            <div class="result-box" style="background: #bbdefb;">
+                Pezzi Totali Ordinati: <span id="finePezzi" class="highlight">0</span> pz<br>
+                Peso Totale Ordinato: <span id="fineKg" class="highlight">0</span> Kg
+            </div>
+        </div>
+    </div>
+
+    <div id="page-archive" class="page">
+        <div class="card">
+            <h2>➕ Aggiungi / Modifica Articolo</h2>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="formCodice">Codice (ID)</label>
+                    <input type="text" id="formCodice" placeholder="Es. 101">
+                </div>
+                <div class="form-group">
+                    <label for="formDesc">Descrizione</label>
+                    <input type="text" id="formDesc" placeholder="Es. Hamburger">
+                </div>
+            </div>
+            <div class="grid">
+                <div class="form-group">
+                    <label for="formPeso">Peso Singolo (gr)</label>
+                    <input type="number" id="formPeso" placeholder="gr">
+                </div>
+                <div class="form-group">
+                    <label for="formConf">Conf. per Cartone</label>
+                    <input type="number" id="formConf" placeholder="Numero">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="formPezzi">Pezzi per Confezione</label>
+                <input type="number" id="formPezzi" placeholder="Numero">
+            </div>
+            <button class="btn-action" onclick="salvaArticolo()">💾 Salva nel Local Storage</button>
+            <button class="btn-action btn-danger" id="btn-elimina" style="display:none; margin-top:8px;" onclick="eliminaArticolo()">🗑️ Elimina Articolo</button>
+        </div>
+    </div>
+
+    <script>
