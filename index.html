@@ -463,4 +463,48 @@
             });
             
             text += `\n⚖️ *PESO TOTALE: ${pesoTotaleSpedizione.toFixed(2)} Kg*`;
-            window.open("https://api.whatsapp.
+            window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(text), '_blank');
+        }
+
+        function sendReportEmail() {
+            const activeOrders = database.filter(item => orderSession[item.code] && orderSession[item.code].confermatoCartoni > 0);
+            if(activeOrders.length === 0) { alert("Lista vuota!"); return; }
+
+            let subject = `Riordino del ${getFormattedDate()}`;
+            let body = `Riepilogo Ordine del ${getFormattedDate()}:\n\n`;
+            
+            activeOrders.forEach(item => {
+                const s = orderSession[item.code];
+                body += `Cod: ${item.code} | ${item.name} | Ordine: ${s.confermatoCartoni} CRT\n`;
+            });
+
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+
+        function clearCurrentOrderList() {
+            if(confirm("Vuoi cancellare definitivamente tutta la lista di riordino di oggi?")) {
+                orderSession = {};
+                currentFormState = {};
+                localStorage.removeItem('rh_db_v1.3_session');
+                renderPrintList();
+            }
+        }
+
+        function emergencyReset() {
+            if(confirm("Ripristinare l'applicazione cancellando la memoria?")) {
+                localStorage.clear(); location.reload();
+            }
+        }
+
+        window.onload = function() {
+            const savedAnag = localStorage.getItem('rh_db_v1.3_anag');
+            if(savedAnag) database = JSON.parse(savedAnag);
+            
+            const savedSession = localStorage.getItem('rh_db_v1.3_session');
+            if(savedSession) orderSession = JSON.parse(savedSession);
+            
+            renderOrders();
+        };
+    </script>
+</body>
+</html>
