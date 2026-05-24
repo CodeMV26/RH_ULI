@@ -69,7 +69,7 @@
     <div id="panel-orders" class="page-panel">
         <input type="text" id="search-input" class="search-input" onkeyup="renderOrders()" placeholder="🔍 Cerca per Codice o Descrizione...">
         <div id="cards-container"></div>
-        <button class="btn btn-success" style="margin-top: 15px;" onclick="sendOrderWhatsApp()">📱 Esporta Ordine su WhatsApp</button>
+        <button class="btn btn-success" style="margin-top: 15px;" onclick="sendOrderWhatsApp()">📱 Esporta Ordine Completo su WhatsApp</button>
     </div>
 
     <div id="panel-manage" class="page-panel hidden">
@@ -200,7 +200,7 @@
                 database[idx].confCart = confCart;
             }
 
-            localStorage.setItem('rh_db_v7', JSON.stringify(database));
+            localStorage.setItem('rh_db_v8', JSON.stringify(database));
             resetForm();
             renderDatabaseTable();
             alert("Salvataggio completato!");
@@ -221,7 +221,7 @@
         function deleteDatabaseRecord(index) {
             if(confirm("Eliminare questo prodotto?")) {
                 database.splice(index, 1);
-                localStorage.setItem('rh_db_v7', JSON.stringify(database));
+                localStorage.setItem('rh_db_v8', JSON.stringify(database));
                 renderDatabaseTable();
             }
         }
@@ -242,7 +242,6 @@
             const query = document.getElementById('search-input').value.toLowerCase().trim();
             container.innerHTML = '';
 
-            // Se la barra di ricerca è vuota, mostriamo un messaggio pulito anziché ingolfare la pagina
             if (query === '') {
                 container.innerHTML = `<div class="data-box" style="padding:25px; color:#64748b; font-weight:bold;">🔍 Digita un Codice o una Descrizione per iniziare a compilare...</div>`;
                 return;
@@ -346,26 +345,48 @@
             const item = database.find(i => i.code === code);
             if(item) {
                 item[field] = field.includes('Cartoni') ? (parseFloat(value) || 0) : (parseInt(value) || 0);
-                localStorage.setItem('rh_db_v7', JSON.stringify(database));
+                localStorage.setItem('rh_db_v8', JSON.stringify(database));
                 renderOrders();
             }
         }
 
+        // FORMATTAZIONE AVANZATA PER TRASMETTERE L'INTERA VIDEATA DEI PARAMETRI
         function sendOrderWhatsApp() {
             const toOrder = database.filter(i => i.confermatoCartoni > 0);
             if(toOrder.length === 0) {
                 alert("Nessun ordine confermato presente!");
                 return;
             }
-            let text = "📋 *ORDINE STOCK RH_ULI*\n\n";
+            
+            let text = "📋 *REPORT REQUISIZIONE COMPLETO STOCK RH_ULI*\n";
+            text += "===================================\n\n";
+            
             let pesoTotaleSpedizione = 0;
+            
             toOrder.forEach(i => {
-                const pzTot = i.confermatoCartoni * (i.pcsConf * i.confCart);
-                const kgTot = (pzTot * i.weight) / 1000;
+                const pezziPerCartone = i.pcsConf * i.confCart;
+                const totaleInCasaPezzi = i.giacMagazzino + i.giacCucina;
+                const arriviPezziTotali = i.arriviCartoni * pezziPerCartone;
+                
+                const propostaPezzi = Math.max(0, i.venditeSettimana - totaleInCasaPezzi - arriviPezziTotali);
+                const propostaCartoni = pezziPerCartone > 0 ? (propostaPezzi / pezziPerCartone).toFixed(2) : 0;
+                
+                const pezziOrdinatiFinali = i.confermatoCartoni * pezziPerCartone;
+                const kgTot = (pezziOrdinatiFinali * i.weight) / 1000;
                 pesoTotaleSpedizione += kgTot;
-                text += `• *[COD.${i.code}] ${i.name}* ➔ *${i.confermatoCartoni}* CRT (${pzTot} pz) [${kgTot.toFixed(2)} Kg]\n`;
+                
+                // Ricostruzione testuale identica alla videata dell'app
+                text += `📦 *[COD.${i.code}] ${i.name}*\n`;
+                text += `┌─ 📋 *ANAGRAFICA:* ${i.weight}g | ${i.pcsConf} pz/conf | ${i.confCart} conf/crt\n`;
+                text += `├─ 🏠 *1. IN CASA:* Mag: ${i.giacMagazzino} pz | Cuc: ${i.giacCucina} pz ➔ *Tot: ${totaleInCasaPezzi} pz*\n`;
+                text += `├─ 🚚 *2. ARRIVI & VENDITE:* Arrivi: ${i.arriviCartoni} CRT (${arriviPezziTotali} pz) | Vendite: ${i.venditeSettimana} pz\n`;
+                text += `├─ 📊 *3. ANALISI PROPOSTA:* ${propostaPezzi} pz ➔ *${propostaCartoni} CRT*\n`;
+                text += `└─ ✅ *4. CONFERMA ORDINE:* *${i.confermatoCartoni} CRT* (*${pezziOrdinatiFinali} pz* | *${kgTot.toFixed(2)} Kg*)\n`;
+                text += "-----------------------------------\n\n";
             });
-            text += `\n⚖️ *PESO TOTALE GENERALE:* *${pesoTotaleSpedizione.toFixed(2)}* Kg`;
+            
+            text += `⚖️ *BILANCIO PESO TOTALE SPEDIZIONE:* *${pesoTotaleSpedizione.toFixed(2)} Kg*`;
+            
             window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(text), '_blank');
         }
 
@@ -377,14 +398,14 @@
         }
 
         window.onload = function() {
-            const saved = localStorage.getItem('rh_db_v7');
+            const saved = localStorage.getItem('rh_db_v8');
             if(saved) {
                 database = JSON.parse(saved);
             } else {
                 database = [
                     { code: "1001", name: "ESEMPIO PRODOTTO TEST", weight: 500, pcsConf: 10, confCart: 4, giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 }
                 ];
-                localStorage.setItem('rh_db_v7', JSON.stringify(database));
+                localStorage.setItem('rh_db_v8', JSON.stringify(database));
             }
             renderOrders();
         };
