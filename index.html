@@ -3,218 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RH_ULI Stock Manager</title>
+    <title>RH_ULI Stock Expert</title>
     <style>
-        :root { --primary: #2563eb; --bg: #f8fafc; --text: #1e293b; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 15px; }
-        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
-        .btn { background: var(--primary); color: white; border: none; padding: 12px 15px; border-radius: 8px; font-size: 16px; font-weight: bold; width: 100%; display: block; text-align: center; box-sizing: border-box; margin-bottom: 10px; cursor: pointer; }
-        .btn-secondary { background: #64748b; }
+        :root { --primary: #2563eb; --bg: #f1f5f9; --text: #0f172a; --border: #e2e8f0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; box-sizing: border-box; }
+        
+        /* Navigazione */
+        .nav-tabs { display: flex; gap: 8px; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg); padding: 4px 0; z-index: 10; }
+        .nav-tabs .btn { flex: 1; margin-bottom: 0; }
+        
+        /* Pulsanti */
+        .btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 8px; font-size: 15px; font-weight: bold; width: 100%; display: block; text-align: center; box-sizing: border-box; margin-bottom: 8px; cursor: pointer; }
+        .btn-secondary { background: #475569; }
         .btn-success { background: #16a34a; }
-        .nav-tabs { display: flex; gap: 10px; margin-bottom: 15px; }
-        .nav-tabs .btn { margin-bottom: 0; flex: 1; }
-        .search-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 15px; }
+        .btn-danger { background: #dc2626; padding: 6px 10px; font-size: 13px; width: auto; display: inline-block; margin-bottom: 0; }
+        .btn-edit { background: #ea580c; padding: 6px 10px; font-size: 13px; width: auto; display: inline-block; margin-bottom: 0; }
         
-        /* Tabella Mobile Responsive */
-        .table-responsive { overflow-x: auto; margin-top: 10px; }
-        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
-        th, td { padding: 10px; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
-        th { background-color: #f1f5f9; font-weight: bold; color: #475569; }
+        /* Ricerca */
+        .search-input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 12px; }
         
-        .input-small { width: 60px; padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; text-align: center; font-size: 14px; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 13px; }
-        .badge-info { background: #e0f2fe; color: #0369a1; }
-        .badge-warning { background: #fef3c7; color: #b45309; }
+        /* VISUALIZZAZIONE A SCHEDE (ITEM PER VOLTA) */
+        .item-card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); margin-bottom: 14px; border: 1px solid var(--border); }
+        .item-title { font-size: 18px; font-weight: 8px; color: #1e3a8a; border-bottom: 2px solid #eff6ff; padding-bottom: 6px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
         
-        textarea { width: 100%; height: 180px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 15px; font-family: monospace; box-sizing: border-box; margin-bottom: 15px; }
+        /* Griglia Parametri Chiara */
+        .param-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 12px; }
+        .param-box { background: #f8fafc; padding: 8px 10px; border-radius: 6px; border: 1px solid #f1f5f9; }
+        .param-box.highlight { background: #eff6ff; border-color: #bfdbfe; }
+        .param-box.warning { background: #fffbeb; border-color: #fde68a; }
+        .param-label { font-size: 11px; color: #64748b; text-transform: uppercase; font-weight: bold; margin-bottom: 4px; }
+        .param-value { font-size: 15px; font-weight: bold; }
+        
+        /* Input numerici nelle schede ordini */
+        .input-field { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; box-sizing: border-box; text-align: center; font-weight: bold; background: white; }
+        
+        /* STRUTTURA DATABASE (Campi e Record distinti) */
+        .db-form { background: white; padding: 16px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 16px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #475569; }
+        .form-input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; box-sizing: border-box; }
+        
+        /* Tabella di controllo Database */
+        .db-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; font-size: 14px; }
+        .db-table th, .db-table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: left; }
+        .db-table th { background: #e2e8f0; font-weight: bold; }
+        
+        .hidden { display: none !important; }
+        .text-center { text-align: center; }
     </style>
 </head>
 <body>
 
     <div class="nav-tabs">
-        <button id="btn-tab-orders" class="btn" onclick="switchTab('orders')">📋 Calcolo Fabbisogni & Ordini</button>
-        <button id="btn-tab-manage" class="btn btn-secondary" onclick="switchTab('manage')">⚙️ Gestisci Archivio Items</button>
+        <button id="btn-tab-orders" class="btn" onclick="switchTab('orders')">📋 Pannello Ordini</button>
+        <button id="btn-tab-manage" class="btn btn-secondary" onclick="switchTab('manage')">🗄️ Database Archivio</button>
     </div>
 
     <div id="tab-orders">
-        <div class="card">
-            <input type="text" id="search-input" class="search-input" oninput="renderTable()" placeholder="🔍 Cerca prodotto in archivio...">
+        <input type="text" id="search-input" class="search-input" oninput="renderOrdersCards()" placeholder="🔍 Cerca codice o nome item...">
+        
+        <div id="cards-container">
+            </div>
+        
+        <button class="btn btn-success" style="margin-top: 10px; position: sticky; bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);" onclick="sendOrder()">📱 Invia Ordine Confermato su WhatsApp</button>
+    </div>
+
+    <div id="tab-manage" class="hidden">
+        <div class="db-form">
+            <h3 id="form-title" style="margin-top:0; color:#1e3a8a;">➕ Inserisci Nuovo Record Item</h3>
+            <input type="hidden" id="edit-index" value="">
             
-            <div class="table-responsive">
-                <table>
+            <div class="form-group">
+                <label>CAMPO: Nome Prodotto / Codice Materiale</label>
+                <input type="text" id="field-name" class="form-input" placeholder="Es. Bullone ULI-26">
+            </div>
+            
+            <div class="form-group">
+                <label>CAMPO: Livello Stock Ideale (Quantità Massima)</label>
+                <input type="number" id="field-ideal" class="form-input" placeholder="Es. 100" min="1">
+            </div>
+            
+            <div style="display:flex; gap:10px;">
+                <button class="btn" id="btn-db-save" onclick="saveRecord()">💾 Salva nel Database</button>
+                <button class="btn btn-secondary hidden" id="btn-db-cancel" onclick="clearForm()">Annulla</button>
+            </div>
+        </div>
+
+        <div class="card" style="padding:10px;">
+            <h4 style="margin-top:0; border-bottom:1px solid #cbd5e1; padding-bottom:6px;">🗃️ Record Attuali nel Database (<span id="db-count">0</span>)</h4>
+            <div style="overflow-x:auto;">
+                <table class="db-table">
                     <thead>
                         <tr>
-                            <th>Prodotto</th>
+                            <th>Item (Chiave)</th>
                             <th>Ideale</th>
-                            <th>In Casa</th>
-                            <th>Arrivi</th>
-                            <th>Fabbisogno</th>
-                            <th>Proposta</th>
-                            <th>Conf. Ordine</th>
+                            <th class="text-center">Azioni</th>
                         </tr>
                     </thead>
-                    <tbody id="table-body">
+                    <tbody id="db-table-body">
                         </tbody>
                 </table>
             </div>
         </div>
-        <button class="btn btn-success" onclick="sendOrder()">📱 Invia Ordine Confermato su WhatsApp</button>
-    </div>
-
-    <div id="tab-manage" class="hidden">
-        <div class="card">
-            <h3>⚙️ Gestione Anagrafica Prodotti</h3>
-            <p style="font-size: 13px; color: #64748b; line-height: 1.4;">
-                Qui crei, aggiorni o cancelli i prodotti. Scrivi un prodotto per riga.<br>
-                Formato richiesto: <strong>Nome Prodotto, Quantità Ideale</strong>
-            </p>
-            <textarea id="raw-input" placeholder="Esempio:&#10;Pane, 10&#10;Latte, 5&#10;Farina Tipo 0, 20"></textarea>
-            <button class="btn" onclick="saveArchive()">💾 Salva e Aggiorna Archivio</button>
-        </div>
     </div>
 
     <script>
-        // Array globale dei prodotti
-        let items = [];
+        // Database logico centrale (Array di Oggetti strutturati)
+        let database = [];
 
-        // Funzione per scambiare le schermate
-        document.getElementById('tab-manage').style.display = 'none'; 
         function switchTab(tab) {
             if (tab === 'orders') {
-                document.getElementById('tab-orders').style.display = 'block';
-                document.getElementById('tab-manage').style.display = 'none';
+                document.getElementById('tab-orders').classList.remove('hidden');
+                document.getElementById('tab-manage').classList.add('hidden');
                 document.getElementById('btn-tab-orders').classList.remove('btn-secondary');
                 document.getElementById('btn-tab-manage').classList.add('btn-secondary');
-                renderTable();
+                renderOrdersCards();
             } else {
-                document.getElementById('tab-orders').style.display = 'none';
-                document.getElementById('tab-manage').style.display = 'block';
+                document.getElementById('tab-orders').classList.add('hidden');
+                document.getElementById('tab-manage').classList.remove('hidden');
                 document.getElementById('btn-tab-orders').classList.add('btn-secondary');
                 document.getElementById('btn-tab-manage').classList.remove('btn-secondary');
+                renderDatabaseTable();
             }
         }
 
-        // Legge il testo dell'area di testo e aggiorna l'elenco logico dei prodotti
-        function parseInput() {
-            const rawText = document.getElementById('raw-input').value;
-            const newNames = [];
-            
-            const parsedItems = rawText.split('\n')
-                .map(line => {
-                    const parts = line.split(',');
-                    if (parts.length >= 2) {
-                        const name = parts[0].trim();
-                        const ideal = parseInt(parts[1].trim()) || 0;
-                        if(name !== "") {
-                            newNames.push(name);
-                            // Se il prodotto esisteva già, mantiene i dati inseriti dall'utente
-                            const existing = items.find(i => i.name.toLowerCase() === name.toLowerCase());
-                            return {
-                                name: name,
-                                ideal: ideal,
-                                inCasa: existing ? existing.inCasa : 0,
-                                arrivi: existing ? existing.arrivi : 0,
-                                confermato: existing ? existing.confermato : null
-                            };
-                        }
-                    }
-                    return null;
-                })
-                .filter(i => i !== null);
-            
-            items = parsedItems;
-        }
-
-        // Genera la tabella dinamica con tutti i campi richiesti e i calcoli automatici
-        function renderTable() {
-            const tbody = document.getElementById('table-body');
-            const query = document.getElementById('search-input').value.toLowerCase();
+        // --- FUNZIONI DATABASE ARCHIVIO ---
+        
+        function renderDatabaseTable() {
+            const tbody = document.getElementById('db-table-body');
+            document.getElementById('db-count').innerText = database.length;
             tbody.innerHTML = '';
 
-            const filtered = items.filter(item => item.name.toLowerCase().includes(query));
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 20px;">Nessun materiale trovato. Vai in "Gestisci Archivio" per inserire i prodotti!</td></tr>`;
+            if(database.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#64748b; padding:15px;">Database vuoto. Inserisci il primo record qui sopra!</td></tr>`;
                 return;
             }
 
-            filtered.forEach(item => {
-                // Calcoli matematici automatici richiesti
-                const totaleDisponibile = item.inCasa + item.arrivi;
-                const fabbisogno = Math.max(0, item.ideal - item.inCasa); 
-                const proposta = Math.max(0, item.ideal - totaleDisponibile);
-                
-                // Se l'utente non ha modificato manualmente l'ordine confermato, segui la proposta
-                if (item.confermato === null) {
-                    item.confermato = proposta;
-                }
-
+            database.forEach((record, index) => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td><strong>${item.name}</strong></td>
-                    <td><span class="badge badge-info">${item.ideal}</span></td>
-                    <td><input type="number" class="input-small" value="${item.inCasa}" min="0" onchange="updateRow('${item.name}', 'inCasa', this.value)"></td>
-                    <td><input type="number" class="input-small" value="${item.arrivi}" min="0" onchange="updateRow('${item.name}', 'arrivi', this.value)"></td>
-                    <td><span class="badge font-weight-bold">${fabbisogno}</span></td>
-                    <td><span class="badge badge-warning">${proposta}</span></td>
-                    <td><input type="number" class="input-small" style="border-color: #16a34a; font-weight:bold;" value="${item.confermato}" min="0" onchange="updateRow('${item.name}', 'confermato', this.value)"></td>
+                    <td><strong>${record.name}</strong></td>
+                    <td>${record.ideal}</td>
+                    <td class="text-center" style="white-space:nowrap;">
+                        <button class="btn-edit" onclick="editRecord(${index})">✏️ Modifica</button>
+                        <button class="btn-danger" onclick="deleteRecord(${index})">🗑️ Elimina</button>
+                    </td>
                 `;
                 tbody.appendChild(row);
             });
         }
 
-        // Aggiorna i dati inseriti al volo dall'utente nella tabella
-        function updateRow(name, field, value) {
-            const item = items.find(i => i.name === name);
-            if (item) {
-                if (field === 'confermato') {
-                    item.confermato = parseInt(value) || 0;
-                } else {
-                    item[field] = parseInt(value) || 0;
-                }
-                localStorage.setItem('rh_stock_items_v3', JSON.stringify(items));
-                // Ricalcola istantaneamente i valori visivi della riga
-                renderTable();
-            }
-        }
+        function saveRecord() {
+            const nameField = document.getElementById('field-name').value.trim();
+            const idealField = parseInt(document.getElementById('field-ideal').value) || 0;
+            const editIndex = document.getElementById('edit-index').value;
 
-        // Azione del Pulsante Gestisci: Salva la lista, aggiunge i nuovi, cancella i rimossi
-        function saveArchive() {
-            parseInput();
-            localStorage.setItem('rh_stock_items_v3', JSON.stringify(items));
-            alert('Archivio prodotti aggiornato con successo!');
-            switchTab('orders');
-        }
-
-        // Azione del Pulsante Ordini: Prende i dati confermati e prepara il testo WhatsApp
-        function sendOrder() {
-            const toOrder = items.filter(i => i.confermato > 0);
-            if (toOrder.length === 0) {
-                alert('Nessun ordine confermato presente (tutti i valori sono a 0).');
+            if(nameField === "" || idealField <= 0) {
+                alert("Errore: Compila tutti i campi del record correttamente!");
                 return;
             }
-            let text = "📋 *REQUISIZIONE ORDINE STOCK RH_ULI*\n\n";
-            toOrder.forEach(i => {
-                text += `• *${i.name}*: Ordine Confermato di *${i.confermato}* pz\n`;
-                text += `  [Ideale: ${i.ideal} | In Casa: ${i.inCasa} | Arrivi: ${i.arrivi}]\n\n`;
-            });
-            const url = "https://api.whatsapp.com/send?text=" + encodeURIComponent(text);
-            window.open(url, '_blank');
-        }
 
-        // Caricamento iniziale dei dati persistenti nella memoria locale
-        window.addEventListener('DOMContentLoaded', (event) => {
-            const saved = localStorage.getItem('rh_stock_items_v3');
-            if (saved) {
-                items = JSON.parse(saved);
-                document.getElementById('raw-input').value = items.map(i => `${i.name}, ${i.ideal}`).join('\n');
+            if(editIndex === "") {
+                // Controllo duplicati in inserimento nuovo record
+                const exists = database.some(r => r.name.toLowerCase() === nameField.toLowerCase());
+                if(exists) {
+                    alert("Questo item esiste già nel database! Usa la funzione modifica se vuoi cambiare i parametri.");
+                    return;
+                }
+                // CREA NUOVO RECORD
+                database.push({
+                    name: nameField,
+                    ideal: idealField,
+                    inCasa: 0,
+                    arrivi: 0,
+                    confermato: null
+                });
             } else {
-                // Dati di partenza puliti
-                document.getElementById('raw-input').value = "Materiale Alfa, 50\nMateriale Beta, 20\nComponente Gamma, 10";
-                parseInput();
-            }
-            renderTable();
-        });
-    </script>
-</body>
-</html>
+                // AGGIORNA RECORD ESISTENTE
+                const idx = parseInt(editIndex);
+                database[idx].name = nameField;
+                database[idx].ideal = idealField;
+                // Se
