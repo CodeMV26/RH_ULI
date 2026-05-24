@@ -3,26 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RH_ULI Stock System</title>
+    <title>RH_ULI Stock Expert v6</title>
     <style>
         :root { --primary: #2563eb; --bg: #f1f5f9; --text: #0f172a; --border: #cbd5e1; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; box-sizing: border-box; }
         
-        /* Navigazione Fissa in Alto */
+        /* Barra di Navigazione */
         .nav-tabs { display: flex; gap: 8px; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg); padding: 4px 0; z-index: 100; }
-        .nav-tabs .btn { flex: 1; margin-bottom: 0; }
+        .nav-btn { flex: 1; background: #475569; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 14px; font-weight: bold; cursor: pointer; text-align: center; }
+        .nav-btn.active { background: var(--primary); }
         
-        /* Pulsanti */
+        /* Pulsanti Generici */
         .btn { background: var(--primary); color: white; border: none; padding: 14px; border-radius: 8px; font-size: 15px; font-weight: bold; width: 100%; display: block; text-align: center; box-sizing: border-box; margin-bottom: 8px; cursor: pointer; }
-        .btn-secondary { background: #475569; }
         .btn-success { background: #16a34a; }
-        .btn-danger { background: #dc2626; padding: 6px 10px; font-size: 13px; width: auto; display: inline-block; }
-        .btn-edit { background: #ea580c; padding: 6px 10px; font-size: 13px; width: auto; display: inline-block; }
+        .btn-danger { background: #dc2626; padding: 6px 10px; font-size: 12px; width: auto; display: inline-block; }
+        .btn-edit { background: #ea580c; padding: 6px 10px; font-size: 12px; width: auto; display: inline-block; }
         
         /* Ricerca */
         .search-input { width: 100%; padding: 14px; border: 2px solid var(--primary); border-radius: 8px; font-size: 16px; box-sizing: border-box; margin-bottom: 12px; background: white; }
         
-        /* SCHEDA COMPLETA ITEM (ORDINI) */
+        /* Scheda Prodotto */
         .item-card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 16px; border: 1px solid #e2e8f0; }
         .item-header { font-size: 16px; font-weight: bold; color: #1e3a8a; border-bottom: 2px solid #dbeafe; padding-bottom: 6px; margin-bottom: 12px; }
         
@@ -40,10 +40,9 @@
         
         /* Campi di Input */
         .input-box { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 15px; box-sizing: border-box; text-align: center; font-weight: bold; background: #fff; }
-        .input-box:focus { border-color: var(--primary); outline: none; }
         .input-confirm { border: 2px solid #16a34a; background: #f0fdf4; color: #16a34a; }
         
-        /* FORM DATABASE ARCHIVIO */
+        /* Form Database Archivio */
         .db-form { background: white; padding: 16px; border-radius: 12px; border: 1px solid #cbd5e1; margin-bottom: 16px; }
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; color: #475569; }
@@ -55,110 +54,108 @@
         .db-table th, .db-table td { padding: 10px; border-bottom: 1px solid #e2e8f0; }
         .db-table th { background: #e2e8f0; font-weight: bold; }
         
-        .hidden { display: none !important; }
+        .page-panel { display: block; }
+        .page-panel.hidden { display: none !important; }
         .text-center { text-align: center; }
     </style>
 </head>
 <body>
 
     <div class="nav-tabs">
-        <button id="btn-tab-orders" class="btn" onclick="switchTab('orders')">📋 Compila Ordini</button>
-        <button id="btn-tab-manage" class="btn btn-secondary" onclick="switchTab('manage')">🗄️ Database Archivio (100 Items)</button>
+        <button id="nav-orders" class="nav-btn active" onclick="switchTab('orders')">📋 Compila Ordini</button>
+        <button id="nav-manage" class="nav-btn" onclick="switchTab('manage')">🗄️ Database Archivio</button>
     </div>
 
-    <div id="tab-orders">
-        <input type="text" id="search-input" class="search-input" oninput="renderOrders()" placeholder="🔍 Cerca Item per Codice o Descrizione...">
-        
-        <div id="cards-container">
-            </div>
-        
-        <button class="btn btn-success" style="margin-top: 15px; position: sticky; bottom: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" onclick="sendOrderWhatsApp()">📱 Esporta Requisizione su WhatsApp</button>
+    <div id="panel-orders" class="page-panel">
+        <input type="text" id="search-input" class="search-input" onkeyup="renderOrders()" placeholder="🔍 Cerca Item per Codice o Descrizione...">
+        <div id="cards-container"></div>
+        <button class="btn btn-success" style="margin-top: 15px;" onclick="sendOrderWhatsApp()">📱 Esporta Ordine su WhatsApp</button>
     </div>
 
-    <div id="tab-manage" class="hidden">
+    <div id="panel-manage" class="page-panel hidden">
         <div class="db-form">
-            <h3 id="form-title" style="margin-top:0; color:#1e3a8a;">➕ Inserisci Nuovo Item in Archivio</h3>
+            <h3 id="form-title" style="margin-top:0; color:#1e3a8a;">➕ Inserisci Nuovo Item</h3>
             <input type="hidden" id="edit-index" value="">
             
             <div class="grid-2">
                 <div class="form-group">
                     <label>Codice Item (Numerico)</label>
-                    <input type="text" id="f-code" class="form-input" placeholder="Es. 1042">
+                    <input type="text" id="f-code" class="form-input" placeholder="Es. 101">
                 </div>
                 <div class="form-group">
                     <label>Descrizione / Nome</label>
-                    <input type="text" id="f-name" class="form-input" placeholder="Es. Pomodori Pelati">
+                    <input type="text" id="f-name" class="form-input" placeholder="Es. Pane Bianco">
                 </div>
             </div>
             
             <div class="grid-3">
                 <div class="form-group">
-                    <label>Peso Singolo (Grammi)</label>
-                    <input type="number" id="f-weight" class="form-input" placeholder="Es. 400">
+                    <label>Peso (Grammi)</label>
+                    <input type="number" id="f-weight" class="form-input" placeholder="Es. 500">
                 </div>
                 <div class="form-group">
-                    <label>Pezzi x Confezione</label>
-                    <input type="number" id="f-pcs-conf" class="form-input" placeholder="Es. 6">
+                    <label>Pz x Conf</label>
+                    <input type="number" id="f-pcs-conf" class="form-input" placeholder="Es. 10">
                 </div>
                 <div class="form-group">
-                    <label>Confezioni x Cartone</label>
+                    <label>Conf x Cartone</label>
                     <input type="number" id="f-conf-cart" class="form-input" placeholder="Es. 4">
                 </div>
             </div>
             
-            <div style="display:flex; gap:10px; margin-top:5px;">
-                <button class="btn" id="btn-db-save" onclick="saveDatabaseRecord()">💾 Salva nel Database</button>
-                <button class="btn btn-secondary hidden" id="btn-db-cancel" onclick="resetForm()">Annulla</button>
+            <div style="display:flex; gap:10px;">
+                <button class="btn" style="margin-bottom:0;" onclick="saveDatabaseRecord()">💾 Salva nel Database</button>
+                <button class="nav-btn" id="btn-db-cancel" style="display:none;" onclick="resetForm()">Annulla</button>
             </div>
         </div>
 
-        <div class="card" style="background:white; padding:12px; border-radius:12px; border:1px solid #cbd5e1;">
-            <h4 style="margin-top:0; margin-bottom:10px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">🗃️ Elenco Anagrafiche Archivio (<span id="db-count">0</span>)</h4>
+        <div class="item-card">
+            <h4 style="margin-top:0; margin-bottom:10px;">🗃️ Elenco Prodotti Salvati (<span id="db-count">0</span>)</h4>
             <div class="db-table-wrapper">
                 <table class="db-table">
                     <thead>
                         <tr>
                             <th>Codice</th>
                             <th>Descrizione</th>
-                            <th>Misure Anagrafica</th>
+                            <th>Misure</th>
                             <th class="text-center">Azioni</th>
                         </tr>
                     </thead>
-                    <tbody id="db-table-body">
-                        </tbody>
+                    <tbody id="db-table-body"></tbody>
                 </table>
             </div>
         </div>
+        
+        <button class="btn" style="background:#64748b; margin-top:20px; font-size:12px; padding:8px;" onclick="emergencyReset()">🔄 Reset di Emergenza Memoria App</button>
     </div>
 
     <script>
-        // Database principale degli Items
         let database = [];
 
+        // Cambia scheda in modo solido (nativo CSS puro)
         function switchTab(tab) {
             if (tab === 'orders') {
-                document.getElementById('tab-orders').classList.remove('hidden');
-                document.getElementById('tab-manage').classList.add('hidden');
-                document.getElementById('btn-tab-orders').classList.remove('btn-secondary');
-                document.getElementById('btn-tab-manage').classList.add('btn-secondary');
+                document.getElementById('panel-orders').classList.remove('hidden');
+                document.getElementById('panel-manage').classList.add('hidden');
+                document.getElementById('nav-orders').classList.add('active');
+                document.getElementById('nav-manage').classList.remove('active');
                 renderOrders();
             } else {
-                document.getElementById('tab-orders').classList.add('hidden');
-                document.getElementById('tab-manage').classList.remove('hidden');
-                document.getElementById('btn-tab-orders').classList.add('btn-secondary');
-                document.getElementById('btn-tab-manage').classList.remove('btn-secondary');
+                document.getElementById('panel-orders').classList.add('hidden');
+                document.getElementById('panel-manage').classList.remove('hidden');
+                document.getElementById('nav-orders').classList.remove('active');
+                document.getElementById('nav-manage').classList.add('active');
                 renderDatabaseTable();
             }
         }
 
-        // --- GESTIONE DATABASE ARCHIVIO ---
         function renderDatabaseTable() {
             const tbody = document.getElementById('db-table-body');
             document.getElementById('db-count').innerText = database.length;
             tbody.innerHTML = '';
 
             if(database.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color:#64748b; padding:15px;">Archivio vuoto. Inserisci i tuoi prodotti!</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:15px; color:#64748b;">Nessun record in archivio. Inseriscilo sopra.</td></tr>`;
                 return;
             }
 
@@ -167,10 +164,8 @@
                 row.innerHTML = `
                     <td><strong>${item.code}</strong></td>
                     <td>${item.name}</td>
-                    <td style="color:#475569; font-size:11px;">
-                        ${item.weight}g | Conf: ${item.pcsConf} pz | Cartone: ${item.confCart} conf (${item.pcsConf * item.confCart} pz tot)
-                    </td>
-                    <td class="text-center" style="white-space:nowrap;">
+                    <td>${item.weight}g | C:${item.confCart}xP:${item.pcsConf}</td>
+                    <td class="text-center">
                         <button class="btn-edit" onclick="editDatabaseRecord(${index})">✏️</button>
                         <button class="btn-danger" onclick="deleteDatabaseRecord(${index})">🗑️</button>
                     </td>
@@ -187,21 +182,17 @@
             const confCart = parseInt(document.getElementById('f-conf-cart').value) || 0;
             const editIndex = document.getElementById('edit-index').value;
 
-            if(!code || !name || weight<=0 || pcsConf<=0 || confCart<=0) {
-                alert("Errore: Compila accuratamente tutti i campi dell'anagrafica!");
+            if(!code || !name || weight <= 0 || pcsConf <= 0 || confCart <= 0) {
+                alert("Compila tutti i campi numerici!");
                 return;
             }
 
             if(editIndex === "") {
-                // Nuovo record
                 database.push({
                     code, name, weight, pcsConf, confCart,
-                    giacMagazzino: 0, giacCucina: 0,
-                    arriviCartoni: 0, venditeSettimana: 0,
-                    confermatoCartoni: 0
+                    giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0
                 });
             } else {
-                // Modifica esistente
                 const idx = parseInt(editIndex);
                 database[idx].code = code;
                 database[idx].name = name;
@@ -210,10 +201,10 @@
                 database[idx].confCart = confCart;
             }
 
-            saveToStorage();
+            localStorage.setItem('rh_db_v6', JSON.stringify(database));
             resetForm();
             renderDatabaseTable();
-            alert("Archivio salvato!");
+            alert("Salvataggio completato!");
         }
 
         function editDatabaseRecord(index) {
@@ -224,16 +215,14 @@
             document.getElementById('f-pcs-conf').value = item.pcsConf;
             document.getElementById('f-conf-cart').value = item.confCart;
             document.getElementById('edit-index').value = index;
-
-            document.getElementById('form-title').innerText = "✏️ Modifica Record Item";
-            document.getElementById('btn-db-save').innerText = "💾 Salva Modifiche";
-            document.getElementById('btn-db-cancel').classList.remove('hidden');
+            document.getElementById('form-title').innerText = "✏️ Modifica Record";
+            document.getElementById('btn-db-cancel').style.display = "inline-block";
         }
 
         function deleteDatabaseRecord(index) {
-            if(confirm(`Eliminare definitivamente l'item "${database[index].name}"?`)) {
+            if(confirm("Eliminare questo prodotto?")) {
                 database.splice(index, 1);
-                saveToStorage();
+                localStorage.setItem('rh_db_v6', JSON.stringify(database));
                 renderDatabaseTable();
             }
         }
@@ -245,12 +234,10 @@
             document.getElementById('f-pcs-conf').value = "";
             document.getElementById('f-conf-cart').value = "";
             document.getElementById('edit-index').value = "";
-            document.getElementById('form-title').innerText = "➕ Inserisci Nuovo Item in Archivio";
-            document.getElementById('btn-db-save').innerText = "💾 Salva nel Database";
-            document.getElementById('btn-db-cancel').classList.add('hidden');
+            document.getElementById('form-title').innerText = "➕ Inserisci Nuovo Item";
+            document.getElementById('btn-db-cancel').style.display = "none";
         }
 
-        // --- SCHERMATA COMPILAZIONE INTERFACCIA ED ELABORAZIONE CALCOLI ---
         function renderOrders() {
             const container = document.getElementById('cards-container');
             const query = document.getElementById('search-input').value.toLowerCase();
@@ -261,53 +248,132 @@
             );
 
             if(filtered.length === 0) {
-                container.innerHTML = `<div class="data-box text-center" style="padding:20px; color:#64748b;">Nessun materiale trovato. Verifica il codice o aggiungilo nel Database.</div>`;
+                container.innerHTML = `<div class="data-box" style="padding:20px; color:#64748b;">Nessun prodotto trovato. Crea le tue anagrafiche nel pannello "Database Archivio".</div>`;
                 return;
             }
 
             filtered.forEach(item => {
-                // 1. CALCOLI ANAGRAFICA BASE
                 const pezziPerCartone = item.pcsConf * item.confCart;
-                
-                // 2. CALCOLO TOTALE IN CASA (X)
                 const totaleInCasaPezzi = item.giacMagazzino + item.giacCucina;
-                
-                // 3. CALCOLO ARRIVI TOTALI (Z)
                 const arriviConfezioniTotali = item.arriviCartoni * item.confCart;
                 const arriviPezziTotali = item.arriviCartoni * pezziPerCartone;
                 
-                // 4. FORMULA PROPOSTA D'ORDINE MATEMATICA (Y - X - Z)
-                // Y = Vendite, X = Totale in casa pezzi, Z = Arrivi pezzi totali
+                // Algoritmo richiesto: Y - X - Z
                 const propostaPezzi = Math.max(0, item.venditeSettimana - totaleInCasaPezzi - arriviPezziTotali);
-                
-                // Trasformazione proposta in numero di cartoni (anche decimale)
                 const propostaCartoni = pezziPerCartone > 0 ? (propostaPezzi / pezziPerCartone).toFixed(2) : 0;
-
-                // 5. CALCOLO OUTPUT FINALE SU ORDINE CONFERMATO MANUALE
+                
                 const pezziOrdinatiFinali = item.confermatoCartoni * pezziPerCartone;
                 const kgOrdinatiFinali = ((pezziOrdinatiFinali * item.weight) / 1000).toFixed(2);
 
-                // Generazione della scheda visiva ad alta leggibilità per iPhone
                 const card = document.createElement('div');
                 card.className = 'item-card';
                 card.innerHTML = `
                     <div class="item-header">📦 [COD. ${item.code}] - ${item.name}</div>
                     
                     <div class="grid-3">
-                        <div class="data-box"><div class="data-label">Peso</div><div class="data-val">${item.weight} g</div></div>
+                        <div class="data-box"><div class="data-label">Peso</div><div class="data-val">${item.weight}g</div></div>
                         <div class="data-box"><div class="data-label">Pz x Conf</div><div class="data-val">${item.pcsConf}</div></div>
-                        <div class="data-box"><div class="data-label">Conf x Cart</div><div class="data-val">${item.confCart}</div></div>
+                        <div class="data-box"><div class="data-label">Conf x Crt</div><div class="data-val">${item.confCart}</div></div>
                     </div>
 
-                    <div class="section-title">1. Rilevazione Giacenze (Pezzi)</div>
+                    <div class="section-title">1. Giacenza In Casa (Pezzi)</div>
                     <div class="grid-3">
                         <div>
-                            <label style="font-size:10px; color:#475569; display:block; text-align:center;">GIAC. MAGAZ.</label>
-                            <input type="number" class="input-box" value="${item.giacMagazzino}" min="0" onchange="updateValue('${item.code}', 'giacMagazzino', this.value)">
+                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">MAGAZZINO</label>
+                            <input type="number" class="input-box" value="${item.giacMagazzino}" onchange="updateValue('${item.code}', 'giacMagazzino', this.value)">
                         </div>
                         <div>
-                            <label style="font-size:10px; color:#475569; display:block; text-align:center;">GIAC. CUCINA</label>
-                            <input type="number" class="input-box" value="${item.giacCucina}" min="0" onchange="updateValue('${item.code}', 'giacCucina', this.value)">
+                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">CUCINA</label>
+                            <input type="number" class="input-box" value="${item.giacCucina}" onchange="updateValue('${item.code}', 'giacCucina', this.value)">
                         </div>
                         <div class="data-box highlight">
-                            <div class="
+                            <div class="data-label">Totale Casa (X)</div>
+                            <div class="data-val">${totaleInCasaPezzi} pz</div>
+                        </div>
+                    </div>
+
+                    <div class="section-title">2. In Arrivo & Vendite Recenti</div>
+                    <div class="grid-3">
+                        <div>
+                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">ARRIVI (CRT)</label>
+                            <input type="number" class="input-box" value="${item.arriviCartoni}" onchange="updateValue('${item.code}', 'arriviCartoni', this.value)">
+                        </div>
+                        <div class="data-box">
+                            <div class="data-label">In Arrivo (Z)</div>
+                            <div class="data-val" style="font-size:11px;">${arriviConfezioniTotali} conf<br>${arriviPezziTotali} pz</div>
+                        </div>
+                        <div>
+                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">VENDITE (PZ) (Y)</label>
+                            <input type="number" class="input-box" value="${item.venditeSettimana}" onchange="updateValue('${item.code}', 'venditeSettimana', this.value)">
+                        </div>
+                    </div>
+
+                    <div class="section-title">3. Analisi e Proposta di Ordine</div>
+                    <div class="grid-2">
+                        <div class="data-box alert"><div class="data-label">Proposta (Pezzi)</div><div class="data-val">${propostaPezzi} pz</div></div>
+                        <div class="data-box alert"><div class="data-label">Proposta (Cartoni)</div><div class="data-val">${propostaCartoni} CRT</div></div>
+                    </div>
+
+                    <div class="section-title" style="color:#16a34a;">4. Conferma Quantità d'Ordine</div>
+                    <div class="grid-3">
+                        <div>
+                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center; color:#16a34a;">CONF. CRT</label>
+                            <input type="number" class="input-box input-confirm" value="${item.confermatoCartoni}" onchange="updateValue('${item.code}', 'confermatoCartoni', this.value)">
+                        </div>
+                        <div class="data-box output"><div class="data-label">Tot Pezzi</div><div class="data-val" style="color:#16a34a;">${pezziOrdinatiFinali}</div></div>
+                        <div class="data-box output"><div class="data-label">Tot Kg</div><div class="data-val" style="color:#16a34a;">${kgOrdinatiFinali}</div></div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateValue(code, field, value) {
+            const item = database.find(i => i.code === code);
+            if(item) {
+                item[field] = field.includes('Cartoni') ? (parseFloat(value) || 0) : (parseInt(value) || 0);
+                localStorage.setItem('rh_db_v6', JSON.stringify(database));
+                renderOrders();
+            }
+        }
+
+        function sendOrderWhatsApp() {
+            const toOrder = database.filter(i => i.confermatoCartoni > 0);
+            if(toOrder.length === 0) {
+                alert("Nessun ordine confermato presente!");
+                return;
+            }
+            let text = "📋 *ORDINE STOCK RH_ULI*\n\n";
+            let pesoTotaleSpedizione = 0;
+            toOrder.forEach(i => {
+                const pzTot = i.confermatoCartoni * (i.pcsConf * i.confCart);
+                const kgTot = (pzTot * i.weight) / 1000;
+                pesoTotaleSpedizione += kgTot;
+                text += `• *[COD.${i.code}] ${i.name}* ➔ *${i.confermatoCartoni}* CRT (${pzTot} pz) [${kgTot.toFixed(2)} Kg]\n`;
+            });
+            text += `\n⚖️ *PESO TOTALE GENERALE:* *${pesoTotaleSpedizione.toFixed(2)}* Kg`;
+            window.open("https://api.whatsapp.com/send?text=" + encodeURIComponent(text), '_blank');
+        }
+
+        function emergencyReset() {
+            if(confirm("Attenzione: questo cancellerà la vecchia memoria e riavvierà i pulsanti. Continuare?")) {
+                localStorage.clear();
+                location.reload();
+            }
+        }
+
+        window.onload = function() {
+            const saved = localStorage.getItem('rh_db_v6');
+            if(saved) {
+                database = JSON.parse(saved);
+            } else {
+                database = [
+                    { code: "1001", name: "ESEMPIO PANE", weight: 500, pcsConf: 10, confCart: 4, giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 }
+                ];
+                localStorage.setItem('rh_db_v6', JSON.stringify(database));
+            }
+            renderOrders();
+        };
+    </script>
+</body>
+</html>
