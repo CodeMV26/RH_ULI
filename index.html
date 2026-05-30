@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>RH_ULI Stock System v1.3.3</title>
+    <title>RH_ULI Stock System v1.3.4</title>
     <style>
         :root { --primary: #2563eb; --warning: #ea580c; --bg: #f1f5f9; --text: #0f172a; --border: #cbd5e1; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 12px; box-sizing: border-box; }
@@ -24,10 +24,16 @@
         .btn-danger { background: #dc2626; padding: 6px 10px; font-size: 12px; width: auto; display: inline-block; }
         .btn-edit { background: #ea580c; padding: 6px 10px; font-size: 12px; width: auto; display: inline-block; }
         
-        /* Ricerca e Azione */
-        .search-container { display: flex; gap: 8px; margin-bottom: 12px; }
+        /* Ricerca e Suggerimenti Rapidi */
+        .search-container { display: flex; gap: 8px; margin-bottom: 12px; position: relative; }
         .search-input { flex: 1; padding: 14px; border: 2px solid var(--primary); border-radius: 8px; font-size: 16px; box-sizing: border-box; background: white; margin: 0; }
         .btn-action { background: #2563eb; color: white; border: none; padding: 0 12px; border-radius: 8px; font-size: 12px; font-weight: bold; cursor: pointer; text-align: center; white-space: normal; line-height: 1.2; width: 110px; -webkit-appearance: none; }
+        
+        .suggestions-list { background: white; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; max-height: 200px; overflow-y: auto; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+        .suggestion-item { padding: 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+        .suggestion-item:last-child { border-bottom: none; }
+        .suggestion-item:hover, .suggestion-item:active { background: #eff6ff; color: #1e3a8a; font-weight: bold; }
+        .suggestion-code { background: #e2e8f0; padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: bold; color: #475569; }
         
         /* Scheda Prodotto */
         .item-card { background: white; padding: 16px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 16px; border: 1px solid #e2e8f0; }
@@ -69,7 +75,7 @@
 
         @media print {
             body { background: white; color: black; padding: 0; }
-            .nav-tabs, .search-container, .btn, .btn-danger, .btn-edit, #panel-orders, #panel-manage, .no-print { display: none !important; }
+            .nav-tabs, .search-container, .suggestions-list, .btn, .btn-danger, .btn-edit, #panel-orders, #panel-manage, .no-print { display: none !important; }
             #panel-print-list { display: block !important; }
             .db-table-wrapper { border: none; overflow: visible; }
             .db-table th { background: #f1f5f9 !important; color: black !important; border-bottom: 2px solid black; }
@@ -79,20 +85,26 @@
 </head>
 <body>
 
+    <!-- NAVIGAZIONE PRINCIPALE -->
     <div class="nav-tabs">
         <button id="nav-orders" class="nav-btn active-orders" onclick="switchTab('orders')">📋 Compila Ordini</button>
         <button id="nav-print-list" class="nav-btn" onclick="switchTab('print-list')">🖨️ Lista Riordino</button>
         <button id="nav-manage" class="nav-btn" onclick="switchTab('manage')">🗄️ Database Archivio</button>
     </div>
 
+    <!-- ================= PANNELLO ORDINI ================= -->
     <div id="panel-orders" class="page-panel">
         <div class="search-container">
-            <input type="text" id="search-input" class="search-input" onkeyup="renderOrders()" placeholder="🔍 Cerca per Codice o Descrizione...">
+            <input type="text" id="search-input" class="search-input" onkeyup="handleSearchInput()" placeholder="🔍 Scrivi per cercare (es: pane, 601...)">
             <button id="btn-save-next" class="btn-action" style="display:none;" onclick="saveAndClearCurrentCard()">➕ Salva e Passa al Prossimo</button>
         </div>
+        <!-- LISTA SUGGERIMENTI SELEZIONABILI -->
+        <div id="suggestions-box" class="suggestions-list" style="display:none;"></div>
+        <!-- SCHEDA DELL'ITEM SELEZIONATO -->
         <div id="cards-container"></div>
     </div>
 
+    <!-- ================= PANNELLO LISTA DI RIORDINO GIORNALIERA ================= -->
     <div id="panel-print-list" class="page-panel hidden">
         <div class="item-card">
             <h2 id="report-date-title" style="margin-top:0; color:#1e3a8a; font-size:18px;">📋 Riordino del --/--/--</h2>
@@ -123,6 +135,7 @@
         </div>
     </div>
 
+    <!-- ================= PANNELLO DATABASE ARCHIVIO ================= -->
     <div id="panel-manage" class="page-panel hidden">
         <div class="db-form">
             <h3 id="form-title" style="margin-top:0; color:#1e3a8a;">➕ Inserisci Nuovo Item</h3>
@@ -154,12 +167,13 @@
         <button class="btn" style="background:#64748b; margin-top:20px; font-size:12px; padding:8px;" onclick="emergencyReset()">🔄 Reset di Emergenza Memoria App</button>
     </div>
 
-    <div class="version-footer no-print">RH_ULI Stock System - Versione 1.3.3</div>
+    <div class="version-footer no-print">RH_ULI Stock System - Versione 1.3.4</div>
 
     <script>
         let database = [];
         let orderSession = {}; 
         let currentFormState = {}; 
+        let selectedItemCode = null; // Memorizza l'unico item selezionato via click
 
         function getFormattedDate() {
             const today = new Date();
@@ -189,7 +203,7 @@
             if (tab === 'orders') {
                 pOrders.classList.remove('hidden');
                 btnOrders.classList.add('active-orders');
-                renderOrders();
+                resetOrderPanel();
             } else if (tab === 'print-list') {
                 pPrint.classList.remove('hidden');
                 btnPrint.classList.add('active-print');
@@ -199,6 +213,14 @@
                 btnManage.classList.add('active-manage');
                 renderDatabaseTable();
             }
+        }
+
+        function resetOrderPanel() {
+            selectedItemCode = null;
+            document.getElementById('search-input').value = "";
+            document.getElementById('suggestions-box').style.display = "none";
+            document.getElementById('btn-save-next').style.display = "none";
+            document.getElementById('cards-container').innerHTML = `<div class="data-box" style="padding:25px; color:#64748b; font-weight:bold;">🔍 Digita un Codice o una Descrizione per iniziare a compilare...</div>`;
         }
 
         function renderDatabaseTable() {
@@ -266,109 +288,149 @@
             document.getElementById('form-title').innerText = "➕ Inserisci Nuovo Item"; document.getElementById('btn-db-cancel').style.display = "none";
         }
 
-        function renderOrders() {
-            const container = document.getElementById('cards-container');
+        // NUOVA GESTIONE DELLA RICERCA AD ELENCO DI SUGGERIMENTI
+        function handleSearchInput() {
             const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const suggestionsBox = document.getElementById('suggestions-box');
+            const container = document.getElementById('cards-container');
             const actionBtn = document.getElementById('btn-save-next');
-            container.innerHTML = '';
+
+            // Se l'utente sta modificando il testo dopo aver già scelto un item, resetta la scelta
+            if (selectedItemCode) {
+                selectedItemCode = null;
+                actionBtn.style.display = "none";
+            }
 
             if (query === '') {
-                actionBtn.style.display = "none";
+                suggestionsBox.style.display = "none";
                 container.innerHTML = `<div class="data-box" style="padding:25px; color:#64748b; font-weight:bold;">🔍 Digita un Codice o una Descrizione per iniziare a compilare...</div>`;
                 return;
             }
 
             const filtered = database.filter(item => item.name.toLowerCase().includes(query) || item.code.toLowerCase().includes(query));
+            
             if(filtered.length === 0) {
-                actionBtn.style.display = "none";
-                container.innerHTML = `<div class="data-box" style="padding:20px;">Nessun prodotto in archivio.</div>`;
+                suggestionsBox.style.display = "none";
+                container.innerHTML = `<div class="data-box" style="padding:20px;">Nessun prodotto in archivio corrispondente.</div>`;
                 return;
             }
 
-            actionBtn.style.display = "block";
+            // Mostra la lista dei suggerimenti filtrati
+            suggestionsBox.innerHTML = '';
+            suggestionsBox.style.display = "block";
+            container.innerHTML = `<div class="data-box" style="padding:15px; color:#2563eb;">👆 Seleziona il prodotto desiderato dalla lista sopra per compilarlo.</div>`;
 
             filtered.forEach(item => {
-                if (!currentFormState[item.code]) {
-                    currentFormState[item.code] = { giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 };
-                }
-                const state = currentFormState[item.code];
-
-                const pezziPerCartone = item.pcsConf * item.confCart;
-                const totaleInCasaPezzi = state.giacMagazzino + state.giacCucina;
-                const arriviPezziTotali = state.arriviCartoni * pezziPerCartone;
-                
-                const propostaPezzi = Math.max(0, state.venditeSettimana - totaleInCasaPezzi - arriviPezziTotali);
-                const propostaCartoni = pezziPerCartone > 0 ? (propostaPezzi / pezziPerCartone).toFixed(2) : 0;
-                
-                const pezziOrdinatiFinali = state.confermatoCartoni * pezziPerCartone;
-                const kgOrdinatiFinali = ((pezziOrdinatiFinali * item.weight) / 1000).toFixed(2);
-
-                const card = document.createElement('div');
-                card.className = 'item-card';
-                card.innerHTML = `
-                    <div class="item-header">📦 [COD. ${item.code}] - ${item.name}</div>
-                    <div class="grid-3">
-                        <div class="data-box"><div class="data-label">Peso</div><div class="data-val">${item.weight}g</div></div>
-                        <div class="data-box"><div class="data-label">Pz x Conf</div><div class="data-val">${item.pcsConf}</div></div>
-                        <div class="data-box"><div class="data-label">Conf x Crt</div><div class="data-val">${item.confCart}</div></div>
-                    </div>
-
-                    <div class="section-title">1. Giacenza In Casa (Pezzi)</div>
-                    <div class="grid-3">
-                        <div>
-                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">MAGAZZINO</label>
-                            <input type="number" class="input-box" value="${state.giacMagazzino}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'giacMagazzino', this.value)">
-                        </div>
-                        <div>
-                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">CUCINA</label>
-                            <input type="number" class="input-box" value="${state.giacCucina}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'giacCucina', this.value)">
-                        </div>
-                        <div class="data-box highlight"><div class="data-label">Totale Casa</div><div class="data-val">${totaleInCasaPezzi} pz</div></div>
-                    </div>
-
-                    <div class="section-title">2. In Arrivo & Vendite Recenti</div>
-                    <div class="grid-3">
-                        <div>
-                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">ARRIVI (CRT)</label>
-                            <input type="number" class="input-box" value="${state.arriviCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'arriviCartoni', this.value)">
-                        </div>
-                        <div class="data-box"><div class="data-label">In Arrivo</div><div class="data-val">${arriviPezziTotali} pz</div></div>
-                        <div>
-                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">VENDITE (PZ)</label>
-                            <input type="number" class="input-box" value="${state.venditeSettimana}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'venditeSettimana', this.value)">
-                        </div>
-                    </div>
-
-                    <div class="section-title">3. Analisi e Proposta di Ordine</div>
-                    <div class="grid-2">
-                        <div class="data-box alert"><div class="data-label">Proposta (Pezzi)</div><div class="data-val">${propostaPezzi} pz</div></div>
-                        <div class="data-box alert"><div class="data-label">Proposta (Cartoni)</div><div class="data-val">${propostaCartoni} CRT</div></div>
-                    </div>
-
-                    <div class="section-title" style="color:#16a34a;">4. Conferma Quantità d'Ordine</div>
-                    <div class="grid-3">
-                        <div>
-                            <label style="font-size:9px; font-weight:bold; display:block; text-align:center; color:#16a34a;">CONF. CRT</label>
-                            <input type="number" class="input-box input-confirm" value="${state.confermatoCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateValue('${item.code}', 'confermatoCartoni', this.value)">
-                        </div>
-                        <div class="data-box output"><div class="data-label">Tot Pezzi</div><div class="data-val" style="color:#16a34a;">${pezziOrdinatiFinali}</div></div>
-                        <div class="data-box output"><div class="data-label">Tot Kg</div><div class="data-val" style="color:#16a34a;">${kgOrdinatiFinali}</div></div>
-                    </div>
-                `;
-                container.appendChild(card);
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerHTML = `<span>${item.name}</span> <span class="suggestion-code">COD. ${item.code}</span>`;
+                div.onclick = function() {
+                    selectItemForOrder(item.code);
+                };
+                suggestionsBox.appendChild(div);
             });
         }
 
-        function updateValue(code, field, value) {
+        // ATTIVA LA SCHEDA DEL SINGOLO PRODOTTO SELEZIONATO DALL'UTENTE
+        function selectItemForOrder(code) {
+            selectedItemCode = code;
+            document.getElementById('suggestions-box').style.display = "none";
+            
+            const item = database.find(i => i.code === code);
+            if(item) {
+                document.getElementById('search-input').value = item.name; // Inserisce il nome completo nella barra
+                renderSingleOrderCard(item);
+            }
+        }
+
+        function renderSingleOrderCard(item) {
+            const container = document.getElementById('cards-container');
+            const actionBtn = document.getElementById('btn-save-next');
+            container.innerHTML = '';
+            actionBtn.style.display = "block";
+
+            if (!currentFormState[item.code]) {
+                currentFormState[item.code] = { giacMagazzino: 0, giacCucina: 0, arriviCartoni: 0, venditeSettimana: 0, confermatoCartoni: 0 };
+            }
+            const state = currentFormState[item.code];
+
+            const pezziPerCartone = item.pcsConf * item.confCart;
+            const totaleInCasaPezzi = state.giacMagazzino + state.giacCucina;
+            const arriviPezziTotali = state.arriviCartoni * pezziPerCartone;
+            
+            const propostaPezzi = Math.max(0, state.venditeSettimana - totaleInCasaPezzi - arriviPezziTotali);
+            const propostaCartoni = pezziPerCartone > 0 ? (propostaPezzi / pezziPerCartone).toFixed(2) : 0;
+            
+            const pezziOrdinatiFinali = state.confermatoCartoni * pezziPerCartone;
+            const kgOrdinatiFinali = ((pezziOrdinatiFinali * item.weight) / 1000).toFixed(2);
+
+            const card = document.createElement('div');
+            card.className = 'item-card';
+            card.innerHTML = `
+                <div class="item-header">📦 [COD. ${item.code}] - ${item.name}</div>
+                <div class="grid-3">
+                    <div class="data-box"><div class="data-label">Peso</div><div class="data-val">${item.weight}g</div></div>
+                    <div class="data-box"><div class="data-label">Pz x Conf</div><div class="data-val">${item.pcsConf}</div></div>
+                    <div class="data-box"><div class="data-label">Conf x Crt</div><div class="data-val">${item.confCart}</div></div>
+                </div>
+
+                <div class="section-title">1. Giacenza In Casa (Pezzi)</div>
+                <div class="grid-3">
+                    <div>
+                        <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">MAGAZZINO</label>
+                        <input type="number" class="input-box" value="${state.giacMagazzino}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateSingleValue('${item.code}', 'giacMagazzino', this.value)">
+                    </div>
+                    <div>
+                        <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">CUCINA</label>
+                        <input type="number" class="input-box" value="${state.giacCucina}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateSingleValue('${item.code}', 'giacCucina', this.value)">
+                    </div>
+                    <div class="data-box highlight"><div class="data-label">Totale Casa</div><div class="data-val">${totaleInCasaPezzi} pz</div></div>
+                </div>
+
+                <div class="section-title">2. In Arrivo & Vendite Recenti</div>
+                <div class="grid-3">
+                    <div>
+                        <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">ARRIVI (CRT)</label>
+                        <input type="number" class="input-box" value="${state.arriviCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateSingleValue('${item.code}', 'arriviCartoni', this.value)">
+                    </div>
+                    <div class="data-box"><div class="data-label">In Arrivo</div><div class="data-val">${arriviPezziTotali} pz</div></div>
+                    <div>
+                        <label style="font-size:9px; font-weight:bold; display:block; text-align:center;">VENDITE (PZ)</label>
+                        <input type="number" class="input-box" value="${state.venditeSettimana}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateSingleValue('${item.code}', 'venditeSettimana', this.value)">
+                    </div>
+                </div>
+
+                <div class="section-title">3. Analisi e Proposta di Ordine</div>
+                <div class="grid-2">
+                    <div class="data-box alert"><div class="data-label">Proposta (Pezzi)</div><div class="data-val">${propostaPezzi} pz</div></div>
+                    <div class="data-box alert"><div class="data-label">Proposta (Cartoni)</div><div class="data-val">${propostaCartoni} CRT</div></div>
+                </div>
+
+                <div class="section-title" style="color:#16a34a;">4. Confirm Quantità d'Ordine</div>
+                <div class="grid-3">
+                    <div>
+                        <label style="font-size:9px; font-weight:bold; display:block; text-align:center; color:#16a34a;">CONF. CRT</label>
+                        <input type="number" class="input-box input-confirm" value="${state.confermatoCartoni}" onfocus="if(this.value=='0')this.value='';" onblur="if(this.value=='')this.value='0';" onchange="updateSingleValue('${item.code}', 'confermatoCartoni', this.value)">
+                    </div>
+                    <div class="data-box output"><div class="data-label">Tot Pezzi</div><div class="data-val" style="color:#16a34a;">${pezziOrdinatiFinali}</div></div>
+                    <div class="data-box output"><div class="data-label">Tot Kg</div><div class="data-val" style="color:#16a34a;">${kgOrdinatiFinali}</div></div>
+                </div>
+            `;
+            container.appendChild(card);
+        }
+
+        function updateSingleValue(code, field, value) {
             if (currentFormState[code]) {
                 currentFormState[code][field] = field.includes('Cartoni') || field.includes('confermato') ? (parseFloat(value) || 0) : (parseInt(value) || 0);
-                renderOrders();
+                const item = database.find(i => i.code === code);
+                if(item) renderSingleOrderCard(item);
             }
         }
 
         function saveAndClearCurrentCard() {
-            const query = document.getElementById('search-input').value.toLowerCase().trim();
-            const currentItem = database.find(item => item.code.toLowerCase() === query || item.name.toLowerCase().includes(query));
+            if (!selectedItemCode) return;
+            
+            const currentItem = database.find(item => item.code === selectedItemCode);
             
             if (currentItem) {
                 const state = currentFormState[currentItem.code];
@@ -395,8 +457,7 @@
                 alert(`Articolo ${currentItem.code} aggiunto correttamente alla Lista Riordino!`);
             }
             
-            document.getElementById('search-input').value = "";
-            renderOrders();
+            resetOrderPanel();
         }
 
         function renderPrintList() {
@@ -474,7 +535,6 @@
             window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         }
 
-        // TASTO 1: RICHIESTA DI CONFERMA SICURA PER SVUOTAMENTO GIORNALIERO
         function clearCurrentOrderList() {
             const primaConferma = confirm("❓ VUOI CANCELLARE LA LISTA DI OGGI?\n\nQuesta operazione azzera i cartoni ordinati oggi, ma conserva tutti i prodotti registrati nel tuo database.");
             if (primaConferma) {
@@ -486,7 +546,6 @@
             }
         }
 
-        // TASTO 2: SISTEMA DI DOPPIA CONFERMA SEQUENZIALE PER IL RESET DI EMERGENZA
         function emergencyReset() {
             const confermaUno = confirm("⚠️ ATTENZIONE: RESET DI EMERGENZA GENERALE!\n\nSei sicuro di voler formattare l'applicazione? Cliccando su OK avvierai la procedura.");
             if (confermaUno) {
@@ -505,7 +564,7 @@
             const savedSession = localStorage.getItem('rh_db_v1.3_session');
             if(savedSession) orderSession = JSON.parse(savedSession);
             
-            renderOrders();
+            resetOrderPanel();
         };
     </script>
 </body>
